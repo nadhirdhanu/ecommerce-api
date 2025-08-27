@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { errorHandler, notFound } = require('./middleware/error');
 
+const adminRoutes = require('./routes/admin.routes');
 const authRoutes = require('./routes/auth.routes');
 const productRoutes = require('./routes/products.routes');
 const cartRoutes = require('./routes/cart.routes');
@@ -15,6 +16,8 @@ app.use(express.json());
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 // Routes
+app.use('/admin', adminRoutes);
+
 app.use('/auth', authRoutes);
 app.use('/products', productRoutes);
 app.use('/cart', cartRoutes);
