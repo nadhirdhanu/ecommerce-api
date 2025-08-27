@@ -1,5 +1,6 @@
 const crypto = require('crypto');
-const { prisma } = require('../db/prisma')
+const { prisma } = require('../db/prisma');
+const { snap } = require('../lib/midtrans');
 
 function simulateCharge({ amount }) {
   // Simulate payment success after basic checks
@@ -17,24 +18,15 @@ async function checkout(userId) {
     include: { product: true }
   });
 
-  if (cartItems.length === 0) {
-    const err = new Error('Cart is empty');
-    err.status = 400;
-    throw err;
-  }
+  if (cartItems.length === 0) throw new Error('Cart is empty');
 
-  // Validate stock and calculate total
-  const orderItems = [];
   let total = 0;
+  const orderItems = [];
 
   for (const item of cartItems) {
     const { product, qty } = item;
     if (!product) throw new Error('Product not found');
-    if (qty > product.stock) {
-      const err = new Error(`Insufficient stock for ${product.name}`);
-      err.status = 400;
-      throw err;
-    }
+    if (qty > product.stock) throw new Error(`Insufficient stock for ${product.name}`);
     total += product.price * qty;
     orderItems.push({
       productId: product.id,
@@ -44,11 +36,66 @@ async function checkout(userId) {
     });
   }
 
-  // Simulate payment
-  const charge = { id: 'ch_' + Date.now(), status: 'succeeded' };
+  // Create Midtrans transaction
+  const transaction = await snap.createTransaction({
+    transaction_details: {
+      order_id: `order-${Date.now()}`,
+      gross_amount: total
+    },
+    customer_details: {
+      first_name: 'User',
+      email: 'user@example.com'
+    },
+    item_details: cartItems.map(item => ({
+      id: item.product.id,
+      name: item.product.name,
+      price: item.product.price,
+      quantity: item.qty
+    }))
+  });
 
-  // Transaction: deduct stock, create order, clear cart
-  const result = await prisma.$transaction(async tx => {
+  return {
+    snapToken: transaction.token,
+    redirectUrl: transaction.redirect_url,
+    total,
+    currency: 'IDR',
+    items: orderItems
+  };
+}
+
+async function listOrders(userId) {
+  return await prisma.order.findMany({
+    where: { userId },
+    include: { items: true },
+    orderBy: { createdAt: 'desc' }
+  });
+}
+
+async function confirmOrder(userId) {
+  const cartItems = await prisma.cartItem.findMany({
+    where: { userId },
+    include: { product: true }
+  });
+
+  if (cartItems.length === 0) throw new Error('Cart is empty');
+
+  const orderItems = [];
+  let total = 0;
+
+  for (const item of cartItems) {
+    const { product, qty } = item;
+    if (!product) throw new Error('Product not found');
+    if (qty > product.stock) throw new Error(`Insufficient stock for ${product.name}`);
+    total += product.price * qty;
+    orderItems.push({
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      qty
+    });
+  }
+
+  const order = await prisma.$transaction(async tx => {
     // Deduct stock
     for (const item of cartItems) {
       await tx.product.update({
@@ -58,11 +105,11 @@ async function checkout(userId) {
     }
 
     // Create order
-    const order = await tx.order.create({
+    const createdOrder = await tx.order.create({
       data: {
         userId,
         total,
-        status: charge.status,
+        status: 'paid',
         items: {
           create: orderItems
         }
@@ -73,18 +120,10 @@ async function checkout(userId) {
     // Clear cart
     await tx.cartItem.deleteMany({ where: { userId } });
 
-    return order;
+    return createdOrder;
   });
 
-  return result;
-}
-
-async function listOrders(userId) {
-  return await prisma.order.findMany({
-    where: { userId },
-    include: { items: true },
-    orderBy: { createdAt: 'desc' }
-  });
+  return order;
 }
 
 module.exports = { checkout, listOrders };
