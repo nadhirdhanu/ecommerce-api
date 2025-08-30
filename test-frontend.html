@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Ecommerce</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section { background: white; margin: 20px 0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .section h2 { margin-top: 0; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .form-group { margin: 15px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, textarea, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .response { background: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 4px; margin-top: 10px; white-space: pre-wrap; font-family: monospace; max-height: 300px; overflow-y: auto; }
+        .error { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .success { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .auth-status { position: fixed; top: 10px; right: 10px; padding: 10px; background: #28a745; color: white; border-radius: 4px; }
+        .auth-status.logged-out { background: #dc3545; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test API Ecommerce</h1>
+        <div id="authStatus" class="auth-status logged-out">Not Logged In</div>
+        
+        <div class="grid">
+            <!-- Auth Section -->
+            <div class="section">
+                <h2>🔐 Authentication</h2>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" id="authEmail" value="admin@test.com">
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="authPassword" value="password123">
+                </div>
+                <div class="form-group">
+                    <label>Role (untuk signup):</label>
+                    <select id="authRole">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <button onclick="signup()">Signup</button>
+                <button onclick="login()">Login</button>
+                <button onclick="logout()">Logout</button>
+                <div id="authResponse" class="response"></div>
+            </div>
+
+            <!-- Products Section -->
+            <div class="section">
+                <h2>📦 Products</h2>
+                <button onclick="getProducts()">Get All Products</button>
+                <div class="form-group">
+                    <label>Search Query:</label>
+                    <input type="text" id="searchQuery" placeholder="Search products...">
+                    <button onclick="searchProducts()">Search</button>
+                </div>
+                <div class="form-group">
+                    <label>Product ID:</label>
+                    <input type="text" id="productId" placeholder="Product ID untuk get/update/delete">
+                    <button onclick="getProduct()">Get Product</button>
+                </div>
+                <div id="productsResponse" class="response"></div>
+            </div>
+        </div>
+
+        <!-- Create/Update Product -->
+        <div class="section">
+            <h2>➕ Create/Update Product (Admin Only)</h2>
+            <div class="grid">
+                <div>
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <input type="text" id="productName" value="Test Product">
+                    </div>
+                    <div class="form-group">
+                        <label>Description:</label>
+                        <textarea id="productDescription">Test product description</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Price (IDR):</label>
+                        <input type="number" id="productPrice" value="100000">
+                    </div>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label>SKU:</label>
+                        <input type="text" id="productSku" value="TEST-001">
+                    </div>
+                    <div class="form-group">
+                        <label>Stock:</label>
+                        <input type="number" id="productStock" value="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Update Product ID:</label>
+                        <input type="text" id="updateProductId" placeholder="ID untuk update">
+                    </div>
+                </div>
+            </div>
+            <button onclick="createProduct()">Create Product</button>
+            <button onclick="updateProduct()">Update Product</button>
+            <button onclick="deleteProduct()">Delete Product</button>
+            <div id="productManageResponse" class="response"></div>
+        </div>
+
+        <!-- Cart Section -->
+        <div class="section">
+            <h2>🛒 Cart (Login Required)</h2>
+            <button onclick="getCart()">Get Cart</button>
+            <div class="grid">
+                <div>
+                    <div class="form-group">
+                        <label>Product ID to Add:</label>
+                        <input type="text" id="cartProductId" placeholder="Product ID">
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity:</label>
+                        <input type="number" id="cartQty" value="1" min="1">
+                    </div>
+                    <button onclick="addToCart()">Add to Cart</button>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label>Update Product ID:</label>
+                        <input type="text" id="updateCartProductId" placeholder="Product ID">
+                    </div>
+                    <div class="form-group">
+                        <label>New Quantity:</label>
+                        <input type="number" id="updateCartQty" value="1" min="0">
+                    </div>
+                    <button onclick="updateCartItem()">Update Cart</button>
+                    <button onclick="removeFromCart()">Remove from Cart</button>
+                </div>
+            </div>
+            <div id="cartResponse" class="response"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:4000';
+        let authToken = localStorage.getItem('authToken');
+        
+        // Update auth status display
+        function updateAuthStatus() {
+            const status = document.getElementById('authStatus');
+            if (authToken) {
+                status.textContent = 'Logged In';
+                status.className = 'auth-status';
+            } else {
+                status.textContent = 'Not Logged In';
+                status.className = 'auth-status logged-out';
+            }
+        }
+        
+        // Generic API call function
+        async function apiCall(endpoint, method = 'GET', body = null, needsAuth = false) {
+            const headers = { 'Content-Type': 'application/json' };
+            if (needsAuth && authToken) {
+                headers.Authorization = `Bearer ${authToken}`;
+            }
+            
+            const config = { method, headers };
+            if (body) config.body = JSON.stringify(body);
+            
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, config);
+                const data = await response.json();
+                return { success: response.ok, data, status: response.status };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+        
+        // Display response
+        function showResponse(elementId, result, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = JSON.stringify(result, null, 2);
+            element.className = `response ${isError ? 'error' : 'success'}`;
+        }
+        
+        // Auth functions
+        async function signup() {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const role = document.getElementById('authRole').value;
+            
+            const result = await apiCall('/auth/signup', 'POST', { email, password, role });
+            showResponse('authResponse', result, !result.success);
+        }
+        
+        async function login() {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            
+            const result = await apiCall('/auth/login', 'POST', { email, password });
+            if (result.success && result.data.token) {
+                authToken = result.data.token;
+                localStorage.setItem('authToken', authToken);
+                updateAuthStatus();
+            }
+            showResponse('authResponse', result, !result.success);
+        }
+        
+        function logout() {
+            authToken = null;
+            localStorage.removeItem('authToken');
+            updateAuthStatus();
+            showResponse('authResponse', { message: 'Logged out successfully' });
+        }
+        
+        // Product functions
+        async function getProducts() {
+            const result = await apiCall('/products');
+            showResponse('productsResponse', result, !result.success);
+        }
+        
+        async function searchProducts() {
+            const query = document.getElementById('searchQuery').value;
+            const result = await apiCall(`/products?q=${encodeURIComponent(query)}`);
+            showResponse('productsResponse', result, !result.success);
+        }
+        
+        async function getProduct() {
+            const id = document.getElementById('productId').value;
+            if (!id) return alert('Masukkan Product ID');
+            
+            const result = await apiCall(`/products/${id}`);
+            showResponse('productsResponse', result, !result.success);
+        }
+        
+        async function createProduct() {
+            const product = {
+                name: document.getElementById('productName').value,
+                description: document.getElementById('productDescription').value,
+                price: parseInt(document.getElementById('productPrice').value),
+                sku: document.getElementById('productSku').value,
+                stock: parseInt(document.getElementById('productStock').value)
+            };
+            
+            const result = await apiCall('/products', 'POST', product, true);
+            showResponse('productManageResponse', result, !result.success);
+        }
+        
+        async function updateProduct() {
+            const id = document.getElementById('updateProductId').value;
+            if (!id) return alert('Masukkan Product ID untuk update');
+            
+            const product = {
+                name: document.getElementById('productName').value,
+                description: document.getElementById('productDescription').value,
+                price: parseInt(document.getElementById('productPrice').value),
+                sku: document.getElementById('productSku').value,
+                stock: parseInt(document.getElementById('productStock').value)
+            };
+            
+            const result = await apiCall(`/products/${id}`, 'PUT', product, true);
+            showResponse('productManageResponse', result, !result.success);
+        }
+        
+        async function deleteProduct() {
+            const id = document.getElementById('productId').value;
+            if (!id) return alert('Masukkan Product ID untuk delete');
+            
+            const result = await apiCall(`/products/${id}`, 'DELETE', null, true);
+            showResponse('productManageResponse', result, !result.success);
+        }
+        
+        // Cart functions
+        async function getCart() {
+            const result = await apiCall('/cart', 'GET', null, true);
+            showResponse('cartResponse', result, !result.success);
+        }
+        
+        async function addToCart() {
+            const productId = document.getElementById('cartProductId').value;
+            const qty = parseInt(document.getElementById('cartQty').value);
+            
+            if (!productId) return alert('Masukkan Product ID');
+            
+            const result = await apiCall('/cart/items', 'POST', { productId, qty }, true);
+            showResponse('cartResponse', result, !result.success);
+        }
+        
+        async function updateCartItem() {
+            const productId = document.getElementById('updateCartProductId').value;
+            const qty = parseInt(document.getElementById('updateCartQty').value);
+            
+            if (!productId) return alert('Masukkan Product ID');
+            
+            const result = await apiCall(`/cart/items/${productId}`, 'PUT', { qty }, true);
+            showResponse('cartResponse', result, !result.success);
+        }
+        
+        async function removeFromCart() {
+            const productId = document.getElementById('updateCartProductId').value;
+            if (!productId) return alert('Masukkan Product ID');
+            
+            const result = await apiCall(`/cart/items/${productId}`, 'DELETE', null, true);
+            showResponse('cartResponse', result, !result.success);
+        }
+        
+        // Initialize
+        updateAuthStatus();
+    </script>
+</body>
+</html>
