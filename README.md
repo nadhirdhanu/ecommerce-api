@@ -7,7 +7,7 @@ A RESTful API for e-commerce applications built with Node.js, Express, and Prism
 - 🛍️ Product Management
 - 🔐 User Authentication & Authorization
 - 🛒 Shopping Cart Functionality
-- 💳 Secure Checkout Process (via Midtrans)
+- 💳 Secure Checkout Process (via Midtrans) (in progress..)
 - 👤 User Management
 - 🔑 JWT-based Authentication
 - 📊 Admin Dashboard Routes
